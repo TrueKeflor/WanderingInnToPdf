@@ -13,15 +13,18 @@ class Program
 {
     static async Task<int> Main(string[] args)
     {
-        if (args.Length < 1)
+        if (args.Length < 1 || args.Length > 2)
         {
-            Console.WriteLine("Usage: <program> <url>");
+            Console.WriteLine("Usage: <program> <url> [volume]");
             Console.WriteLine("Example: dotnet run --project WanderingInnToPdf/WanderingInnToPdf.csproj -- https://example.com");
+            Console.WriteLine("Example: dotnet run --project WanderingInnToPdf/WanderingInnToPdf.csproj -- https://example.com 1");
             Console.WriteLine("Note: section id is hardcoded to 'table-of-contents'.");
+            Console.WriteLine("      volume is optional; if not specified, all volumes are processed.");
             return 1;
         }
 
         var url = args[0];
+        string volumeSpecifier = args.Length > 1 ? args[1] : null;
         var sectionId = "table-of-contents";
 
         // Create staging folder for chapters
@@ -53,12 +56,30 @@ class Program
 
             var map = BuildVolumeMap(wrappers);
 
-            // Limit to first 2 volumes by default
-            var limitedMap = map.Take(2).ToDictionary(kv => kv.Key, kv => kv.Value);
+            // Determine which volumes to process
+            Dictionary<string, List<(string Text, string Href)>> volumesToProcess;
+            if (volumeSpecifier == null)
+            {
+                volumesToProcess = map;
+            }
+            else
+            {
+                // Assume volumeSpecifier is a 1-based index
+                if (int.TryParse(volumeSpecifier, out int volumeIndex) && volumeIndex >= 1 && volumeIndex <= map.Count)
+                {
+                    var volumeKey = map.Keys.ElementAt(volumeIndex - 1);
+                    volumesToProcess = new Dictionary<string, List<(string Text, string Href)>> { { volumeKey, map[volumeKey] } };
+                }
+                else
+                {
+                    Console.WriteLine($"Invalid volume specifier: {volumeSpecifier}. Available volumes: {string.Join(", ", map.Keys)}");
+                    return 1;
+                }
+            }
 
             // Build chapter map by fetching content from each href
             var chapterMap = new Dictionary<string, List<(string Name, string Content)>>();
-            foreach (var kv in limitedMap)
+            foreach (var kv in volumesToProcess)
             {
                 var volumeKey = kv.Key;
                 Console.WriteLine($"Processing volume: {volumeKey}");

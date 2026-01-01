@@ -1,0 +1,5 @@
+*.pdf
+
+WanderingInnToPdf/chapters/*
+WanderingInnToPdf/bin/*
+WanderingInnToPdf/obj/*
